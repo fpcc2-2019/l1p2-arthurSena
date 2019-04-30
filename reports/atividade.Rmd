@@ -1,0 +1,78 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+
+buscas$date = as.Date(buscas$date, format = "%Y/%m/%d/")
+
+click_rate = buscas %>% group_by(date) %>% summarise(sum_clicks=sum(num_clicks))
+
+
+ggplot(data=click_rate, aes(x=date, y=sum_clicks, group=1)) +
+  geom_line()
+
+```
+
+
+```{r}
+library(gridExtra)
+click_rate_by_groups = buscas %>% group_by(date, group) %>% summarise(sum_clicks=sum(num_clicks))
+
+
+line_by_group = ggplot(data=click_rate_by_groups, aes(x=date, y=sum_clicks, group=group, color=group)) +
+  geom_line()
+
+
+boxplot_by_group = ggplot(click_rate_by_groups, aes(x=group, y=sum_clicks, color=group)) + geom_boxplot()
+
+
+grid.arrange(line_by_group, boxplot_by_group, ncol=2)
+
+```
+
+
+
+```{r}
+boxplot_by_group_date = ggplot(buscas, aes(x=date, y=num_clicks, group=date)) + geom_boxplot() + facet_wrap(group~.)
+boxplot_by_group_date
+```
+
+
+```{r}
+
+# sessions_by_date = buscas %>% group_by(date) %>% summarise(amount_sessions=n_distinct(session_id)) 
+
+temp1 = buscas %>% filter(num_clicks>0) %>% group_by(date) %>% summarise(clicked_sessions=n_distinct(session_id)) 
+temp2 = buscas  %>% group_by(date) %>% summarise(total_sessions=n_distinct(session_id)) 
+
+
+sessions_by_date = temp1 %>% inner_join(temp2, by="date") %>% mutate(clickthrough_rate = clicked_sessions/total_sessions)
+
+
+ggplot(data=sessions_by_date, aes(x=date, y=clickthrough_rate, group=1)) +
+  geom_line()
+
+```
+
+```{r}
+temp1 = buscas %>% 
+            filter(num_clicks>0) %>% 
+                group_by(date, group) %>% 
+                    summarise(clicked_sessions=n_distinct(session_id)) 
+temp2 = buscas  %>%
+            group_by(date, group) %>% 
+                summarise(total_sessions=n_distinct(session_id)) 
+
+
+sessions_by_date = temp1 %>% 
+                        inner_join(temp2, by=c("date", "group")) %>%
+                                mutate(clickthrough_rate = clicked_sessions/total_sessions)
+
+
+ggplot(data=sessions_by_date, aes(x=date, y=clickthrough_rate, group=group, color=group)) + geom_line()
+```
+
