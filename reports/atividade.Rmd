@@ -1,21 +1,65 @@
 ---
-title: "R Notebook"
+title: "FPCC2 - l1p2"
+author: "Arthur Sena"
 output: html_notebook
 ---
 
+```{r, warning=FALSE, echo=FALSE, error=FALSE}
+options(scipen=999)
+library(tidyverse)
+library(here)
+library(lubridate)
+    theme_set(theme_bw())
+buscas = read_csv(here::here("data/search_data.csv"))
+```
 
+
+### __Overview__
+Calcular diferença de tempo entre as buscas por grupo
+
+Nosso objetivo nessa atividade é responder as seguintes perguntas:
+
+- What is our daily overall clickthrough rate? How does it vary between the groups?
+- Which results do people tend to try first? How does it change day-to-day?
+- What is our daily overall zero results rate? How does it vary between the groups?
+- Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the - - dataset and describe its relationship to session length. Visualize the relationship.
+
+
+#### Análise exploratória
+Antes de tentar responder as perguntas, vamos fazer uma análise dos nossos dados com o objetivo se nos familiarizarmos melhor com os mesmos. A princípio, temos dados de sessões de buscas realizadas nos sites da Wikimedia. Abaixo vemos uma amostra de nossos dados.
+
+```{r}
+head(buscas %>% arrange(session_id))
+```
+
+```{r}
+quantidade_de_sessoes <- c(length(unique(buscas$session_id)))
+menor_data <- c(min(buscas$session_start_date))
+maior_data <- c(max(buscas$session_start_date))
+dados_grupoA <- c(nrow(buscas %>% filter(group=="a")))
+dados_grupoB <- c(nrow(buscas %>% filter(group=="b")))
+
+head(data.frame(quantidade_de_sessoes, menor_data, maior_data, dados_grupoA, dados_grupoB))
+
+```
+
+
+Observando os dados acima, conseguimos dizer que temos dados de 67951 sessões da primeira semana do mês de março do ano de 2016. Além disso, nossos dados estão classificados em dois grupos: A e B. Nota-se que o grupo A apresenta mais que o dobro de dados do grupo B. 
+
+Abaixo segue uma visualização da quantidade de cliques ao longo do tempo agrupado por grupo.
 
 ```{r}
 
-buscas$date = as.Date(buscas$date, format = "%Y/%m/%d/")
+buscas$date = as.Date(buscas$session_start_date, format = "%Y/%m/%d/")
 
-click_rate = buscas %>% group_by(date) %>% summarise(sum_clicks=sum(num_clicks))
+click_rate = buscas %>% group_by(date,group) %>% summarise(Quantidade_de_clicks=sum(num_clicks))
 
-
-ggplot(data=click_rate, aes(x=date, y=sum_clicks, group=1)) +
-  geom_line()
+ggplot(data=click_rate, aes(x=date, y=Quantidade_de_clicks, group=group, color=group)) +
+  geom_line() +labs(x="Dias", y="Quantidade de cliques", title="Quantidade de cliques por dia")+ guides(color=guide_legend("Grupo"))
 
 ```
+
+O gráfico acima é bem interessante, pois ele indica que a quantidade de cliques diários por grupo é bastante discriminante. Visto que, o grupo "A" sempre apresenta uma quantidade de cliques bem maior que o grupo "B" em todas as datas.
 
 
 ```{r}
@@ -58,6 +102,11 @@ ggplot(data=sessions_by_date, aes(x=date, y=clickthrough_rate, group=1)) +
 
 ```
 
+
+### __What is our daily overall clickthrough rate? How does it vary between the groups?__
+A fim de calcular a taxa de clique diários por grupo, nós precisamos contabilizar as sessões que tiveram pelo menos um clique e dividir
+esse resultado pela quantidade total de cliques por dia e por grupo. Abaixo segue o resultado.
+
 ```{r}
 temp1 = buscas %>% 
             filter(num_clicks>0) %>% 
@@ -73,6 +122,120 @@ sessions_by_date = temp1 %>%
                                 mutate(clickthrough_rate = clicked_sessions/total_sessions)
 
 
-ggplot(data=sessions_by_date, aes(x=date, y=clickthrough_rate, group=group, color=group)) + geom_line()
+ggplot(data=sessions_by_date, aes(x=date, y=clickthrough_rate, group=group, color=group))+
+    geom_line() + labs(x="Date", y="Clickthrough rate")
+```
+
+Observando o resultado acima, nota-se claramente que o grupo "A" apresenta uma taxa de cliques diários muito maior que o grupo "B".
+
+
+### __Which results do people tend to try first? How does it change day-to-day?__
+
+
+### __What is our daily overall zero results rate? How does it vary between the groups?__
+
+```{r}
+# Calculating zero result rating by group
+zero_results_daily = buscas %>% 
+                        filter(results==0) %>% 
+                            group_by(date, group) %>% 
+                                summarise(zero_results_count=n()) 
+
+total_results_daily = buscas  %>%
+                        group_by(date, group) %>% 
+                            summarise(total_results=n()) 
+
+
+zero_results_rate_by_group = zero_results_daily %>% 
+                            inner_join(total_results_daily, by=c("date", "group")) %>%
+                                mutate(zero_results_rate = zero_results_count/total_results)
+
+
+zero_results_line_chart_group = ggplot(data=zero_results_rate_by_group, aes(x=date, y=zero_results_rate, group=group, color=group))+
+                    geom_line() + labs(x="Date", y="Zero results rate")
+
+
+# Calculating zero result rate without considering groups
+zero_results_rate_without_group = zero_results_rate_by_group %>%
+                                    group_by(date) %>%
+                                        summarise(zero_results_count = sum(zero_results_count),
+                                                  total_results = sum(total_results)) %>% 
+                                            mutate(zero_results_rate=zero_results_count/total_results)
+
+zero_results_line_chart = ggplot(data=zero_results_rate_without_group, aes(x=date, y=zero_results_rate))+
+                    geom_line() + labs(x="Date", y="Zero results rate")
+
+
+boxplot_by_group = ggplot(zero_results_rate_by_group, aes(x=group, y=zero_results_rate, color=group)) +
+                    geom_boxplot() 
+
+
+grid.arrange(zero_results_line_chart, ncol=1)
+grid.arrange(zero_results_line_chart_group, ncol=1)
+# grid.arrange(boxplot_by_group, ncol=1)
+
+```
+
+Observando o gráfico acima, vemos que a taxa de zero resultados não varia muito por dia e não parece ser muito discriminante entre grupos.
+
+
+### __Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the dataset and describe its relationship to session length. Visualize the relationship.__
+
+
+
+```{r}
+
+buscas = buscas %>% mutate(session_length_hour=if_else(session_length <= 900, "15min",
+                                                       if_else(session_length <= 1800 & session_length > 900, "half-hour",
+                                                         if_else(session_length > 1800 & session_length <= 3600, "1 hour",
+                                                           if_else(session_length > 3600 & session_length <= 7200, "2 hours",
+                                                                    "+2 hours")))))
+
+
+num_clicks_session_length = buscas_15min %>%
+                                group_by(session_id, group, date) %>%
+                                    summarise(session_length=first(session_length),amount_clicks=sum(num_clicks),
+                                              session_length_hour=first(session_length_hour)) %>%
+                                                 filter(session_length <=20000) %>%
+                                        mutate(log_session = log(session_length + 1),
+                                               log_clicks=log(amount_clicks + 1))
+
+ggplot(num_clicks_session_length , aes(x=amount_clicks, y=session_length, color=session_length_hour)) + geom_point()
+
+```
+
+
+```{r}
+temp = buscas %>% group_by(group, session_length_hour, date) %>% summarise(n=n())
+ggplot(temp, aes(fill=group, y=n, x=session_length_hour)) + 
+    geom_bar(position="dodge", stat="identity") +
+        facet_wrap(~date)
+
+```
+
+
+```{r}
+
+
+buscas_15min = buscas %>% filter(session_length_hour == "15min")
+
+
+```
+
+
+
+
+
+
+
+```{r}
+session_1more_search = buscas %>% group_by(session_id) %>% summarise(n=n()) %>% filter(n>1) %>% select("session_id")
+
+session_1more_search = session_1more_search %>% inner_join(buscas, by="session_id")
+
+View(session_1more_search %>% group_by(session_id) )
+
+# tibble(i = 1:10) %>% mutate(i2 = i - lag(i))
+
 ```
 
