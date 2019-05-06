@@ -123,7 +123,7 @@ sessions_by_date = temp1 %>%
 
 
 ggplot(data=sessions_by_date, aes(x=date, y=clickthrough_rate, group=group, color=group))+
-    geom_line() + labs(x="Date", y="Clickthrough rate")
+    geom_line() + labs(x="Data", y="Clickthrough rate") + guides(color=guide_legend("Grupo"))
 ```
 
 Observando o resultado acima, nota-se claramente que o grupo "A" apresenta uma taxa de cliques diários muito maior que o grupo "B".
@@ -180,45 +180,116 @@ Observando o gráfico acima, vemos que a taxa de zero resultados não varia muit
 
 
 ### __Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the dataset and describe its relationship to session length. Visualize the relationship.__
-
-
+ Já que temos a variável _session length_ em mãos, vamos tentar validar ou refutar a seguinte hipótese:
+ - H: Qual a relação do tempo da sessão com a quantidade de cliques e buscas feitas?
+ 
+Antes de qualquer coisa, vamos observar o histograma da variável _session length_
 
 ```{r}
 
-buscas = buscas %>% mutate(session_length_hour=if_else(session_length <= 900, "15min",
-                                                       if_else(session_length <= 1800 & session_length > 900, "half-hour",
-                                                         if_else(session_length > 1800 & session_length <= 3600, "1 hour",
-                                                           if_else(session_length > 3600 & session_length <= 7200, "2 hours",
-                                                                    "+2 hours")))))
+ggplot(buscas, aes(x=session_length)) + geom_histogram()
+
+```
+
+Observando o histograma acima, notamos que a maioria das sessões apresenta um tempo bastante curto de duração. Vamos realizar um agrupamento do tempo em cinco categorias:
+
+- Sessões com até 30 segundos de duração
+- Sessões entre 30 segundos e 1 minuto de duração
+- Sessões entre 1 e 2 minutos de duração
+- Sessões entre 2 e 4 minutos de duração
+- Sessoes entre 4 e 8 minutos de duração
+- Sessões acima de 8 minutos de duração
+
+```{r}
+buscas = buscas %>%
+           mutate(session_length_hour=if_else(session_length <= 30, "30s",
+                  if_else(session_length <= 250 & session_length > 120, "4min",
+                      if_else(session_length >250 & session_length <=500, "8min",
+                          if_else(session_length >60 & session_length<=120,"2min",
+                              if_else(session_length > 30 & session_length <= 60,"1min","+8min"))))))
 
 
-num_clicks_session_length = buscas_15min %>%
-                                group_by(session_id, group, date) %>%
-                                    summarise(session_length=first(session_length),amount_clicks=sum(num_clicks),
-                                              session_length_hour=first(session_length_hour)) %>%
-                                                 filter(session_length <=20000) %>%
-                                        mutate(log_session = log(session_length + 1),
-                                               log_clicks=log(amount_clicks + 1))
+session_length_freq = buscas %>% select(session_id, session_length_hour) %>%
+                         distinct() %>%    
+                            group_by(session_length_hour) %>% 
+                                summarise(count=n()) %>% 
+                                    mutate(Percentage=(count/sum(count))*100)
 
-ggplot(num_clicks_session_length , aes(x=amount_clicks, y=session_length, color=session_length_hour)) + geom_point()
+ggplot(session_length_freq, aes(x=session_length_hour, y=Percentage)) + 
+    geom_bar(stat = "identity",position = "dodge") +
+        labs(x="Session length") 
+```
+
+Vemos que a quantidade de sessões com duração abaixo de 30 segundos é maioriar. Vamos agrupar por grupo e observar se esse cenário 
+se mantém.
+
+```{r}
+session_length_freq = buscas %>% select(session_id, session_length_hour, group) %>%
+                         distinct() %>%    
+                            group_by(session_length_hour, group) %>% 
+                                summarise(count=n()) %>% 
+                                    mutate(Porcentagem=(count/sum(count))*100)
+
+session_length_freq_to_wrap = session_length_freq
+
+
+
+ggplot(session_length_freq, aes(x=session_length_hour, y=Porcentagem)) + 
+    geom_bar(stat = "identity",position = "dodge", aes(fill=group))  +
+        labs(x="Duração da Sessão")
+```
+
+A tabela acima é bem interessante, pois ela mostra que a maioria das sessões com até 30 segundos de duração são classificadas como grupo "B". Ao passo que todas as outras sessões com mais tempo de duração são em maior parte do grupo "A".  
+
+Com isso mente, vamos analisar a variáveis quantidade de buscas e clique.
+
+- Quantidade de buscas feitas ao longo dos dias.
+```{r}
+temp = buscas %>% group_by(session_length_hour, date, group) %>% summarise(amount_clicks=sum(num_clicks),amount_of_searches=n())
+
+
+ggplot(data=temp, aes(x=date, y=amount_of_searches, group=session_length_hour, color=session_length_hour))+
+                    geom_line() + scale_x_date(date_labels="%d",date_breaks  ="1 day") +
+                        theme(axis.text.x = element_text(angle = 45, hjust = 1)) + facet_wrap(~group)
+```
+
+O gráfico acima mostra que a quantidade de sessões com menos de 30s de duração foram as sessões que apresentaram uma maior quantidade de buscas no grupo "B" em todos os dias. O mesmo não se reflete no grupo "A" que apresenta u  
+
+```{r}
+
+# buscas = buscas %>% mutate(session_length_hour=if_else(session_length <= 900, "15min",
+#                                                        if_else(session_length <= 1800 & session_length > 900, "half-hour",
+#                                                          if_else(session_length > 1800 & session_length <= 3600, "1 hour",
+#                                                            if_else(session_length > 3600 & session_length <= 7200, "2 hours",
+#                                                                     "+2 hours")))))
+# 
+# 
+# num_clicks_session_length = buscas_15min %>%
+#                                 group_by(session_id, group, date) %>%
+#                                     summarise(session_length=first(session_length),amount_clicks=sum(num_clicks),
+#                                               session_length_hour=first(session_length_hour)) %>%
+#                                                  filter(session_length <=20000) %>%
+#                                         mutate(log_session = log(session_length + 1),
+#                                                log_clicks=log(amount_clicks + 1))
+# 
+ggplot(temp , aes(x=amount_clicks, y=amount_of_searches, color=session_length_hour)) + facet_wrap( ~group) + geom_point()
 
 ```
 
 
-```{r}
-temp = buscas %>% group_by(group, session_length_hour, date) %>% summarise(n=n())
-ggplot(temp, aes(fill=group, y=n, x=session_length_hour)) + 
-    geom_bar(position="dodge", stat="identity") +
-        facet_wrap(~date)
 
+```{r}
+temp = buscas %>% group_by(session_length_hour, date, group) %>% summarise(amount_clicks=sum(num_clicks),amount_of_searches=n())
+
+ggplot(data=temp, aes(x=date, y=amount_clicks, group=session_length_hour, color=session_length_hour))+
+                    geom_line() + scale_x_date(date_labels="%d",date_breaks  ="1 day") +
+                        theme(axis.text.x = element_text(angle = 45, hjust = 1)) + facet_wrap(~group)
 ```
 
 
 ```{r}
-
-
-buscas_15min = buscas %>% filter(session_length_hour == "15min")
-
+temp = buscas %>% filter(session_length_hour == "30s") %>% group_by(, group) %>% 
+    summarise(num_clicks=sum(num_clicks))
 
 ```
 
