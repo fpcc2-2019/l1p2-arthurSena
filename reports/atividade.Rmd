@@ -187,7 +187,7 @@ Antes de qualquer coisa, vamos observar o histograma da variável _session lengt
 
 ```{r}
 
-ggplot(buscas, aes(x=session_length)) + geom_histogram()
+ggplot(buscas, aes(x=session_length)) + geom_histogram(binwidth = 15) + labs(x="Duração Sessão", y="Frequência")
 
 ```
 
@@ -217,7 +217,7 @@ session_length_freq = buscas %>% select(session_id, session_length_hour) %>%
 
 ggplot(session_length_freq, aes(x=session_length_hour, y=Percentage)) + 
     geom_bar(stat = "identity",position = "dodge") +
-        labs(x="Session length") 
+        labs(x="Duraçao da sessão", y="Porcentagem") 
 ```
 
 Vemos que a quantidade de sessões com duração abaixo de 30 segundos é maioriar. Vamos agrupar por grupo e observar se esse cenário 
@@ -239,44 +239,26 @@ ggplot(session_length_freq, aes(x=session_length_hour, y=Porcentagem)) +
         labs(x="Duração da Sessão")
 ```
 
-A tabela acima é bem interessante, pois ela mostra que a maioria das sessões com até 30 segundos de duração são classificadas como grupo "B". Ao passo que todas as outras sessões com mais tempo de duração são em maior parte do grupo "A".  
+A visualização acima é bem interessante, pois ela mostra que a maioria das sessões com até 30 segundos de duração são classificadas como grupo "B". Ao passo que todas as outras sessões com mais tempo de duração são em maior parte do grupo "A".  
 
 Com isso mente, vamos analisar a variáveis quantidade de buscas e clique.
 
 - Quantidade de buscas feitas ao longo dos dias.
-```{r}
+```{r, echo=F, warning=F, error=F}
 temp = buscas %>% group_by(session_length_hour, date, group) %>% summarise(amount_clicks=sum(num_clicks),amount_of_searches=n())
 
 
 ggplot(data=temp, aes(x=date, y=amount_of_searches, group=session_length_hour, color=session_length_hour))+
                     geom_line() + scale_x_date(date_labels="%d",date_breaks  ="1 day") +
-                        theme(axis.text.x = element_text(angle = 45, hjust = 1)) + facet_wrap(~group)
+                        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+                            facet_wrap(~group) + labs(y="Quantidade de buscas", x ="Dia") +
+                                guides(color=guide_legend("Duração Sessão"))
 ```
 
-O gráfico acima mostra que a quantidade de sessões com menos de 30s de duração foram as sessões que apresentaram uma maior quantidade de buscas no grupo "B" em todos os dias. O mesmo não se reflete no grupo "A" que apresenta u  
-
-```{r}
-
-# buscas = buscas %>% mutate(session_length_hour=if_else(session_length <= 900, "15min",
-#                                                        if_else(session_length <= 1800 & session_length > 900, "half-hour",
-#                                                          if_else(session_length > 1800 & session_length <= 3600, "1 hour",
-#                                                            if_else(session_length > 3600 & session_length <= 7200, "2 hours",
-#                                                                     "+2 hours")))))
-# 
-# 
-# num_clicks_session_length = buscas_15min %>%
-#                                 group_by(session_id, group, date) %>%
-#                                     summarise(session_length=first(session_length),amount_clicks=sum(num_clicks),
-#                                               session_length_hour=first(session_length_hour)) %>%
-#                                                  filter(session_length <=20000) %>%
-#                                         mutate(log_session = log(session_length + 1),
-#                                                log_clicks=log(amount_clicks + 1))
-# 
-ggplot(temp , aes(x=amount_clicks, y=amount_of_searches, color=session_length_hour)) + facet_wrap( ~group) + geom_point()
-
-```
+O gráfico acima mostra que a quantidade de sessões com menos de 30s de duração foram as sessões que apresentaram uma maior quantidade de buscas no grupo "B" em todos os dias. O mesmo não se reflete no grupo "A" que apresenta sessões com duração entre 4 e 8 minutos como as que apresentaram a maior quantidade de buscas em todos os dias.
 
 
+- Quantidade de cliques feitos ao longo dos dias.
 
 ```{r}
 temp = buscas %>% group_by(session_length_hour, date, group) %>% summarise(amount_clicks=sum(num_clicks),amount_of_searches=n())
@@ -286,6 +268,29 @@ ggplot(data=temp, aes(x=date, y=amount_clicks, group=session_length_hour, color=
                         theme(axis.text.x = element_text(angle = 45, hjust = 1)) + facet_wrap(~group)
 ```
 
+O cenário que é mostrado no gráfico acima demonstra que a quantidade de cliques diários no por duração de sessão é maior no grupo "A". Além disso, vemos que o grupo "A" sofreu uma quedra abrupta de cliques entre o dia 4 e o dia 6. De forma contrária, o grupo "B" apresentou uma quantidade de cliques bem mais uniforme e estável.
+
+Por fim, vamos apresentar as três variáveis em somente uma visualização e analisar o relacionamento delas.
+```{r}
+
+session_to_wrap = ggplot(temp, aes(x=amount_clicks, y=amount_of_searches, color=group)) + facet_wrap( ~session_length_hour, scales = "free_y") + geom_point()
+
+group_to_wrap = ggplot(temp, aes(x=amount_clicks, y=amount_of_searches, color=session_length_hour)) + facet_wrap( ~group, scales = "free_y") + geom_point()
+
+grid.arrange(session_to_wrap, ncol=1)
+grid.arrange(group_to_wrap, ncol=1)
+
+```
+
+Nota-se uma clara correlação positiva entre as variveis quantidade de busca e quantidade de cliques, de forma que tal correlação permanece mesmo fazendo o agrupamento por grupos. Ademais, as sessões curtas (30s) do grupo "B" ficam bastante evidentes, pois apresentam uma quantidade de buscas bem maior que as outras sessões. Abaixo, calculamos a correlação entre a quantidade de buscas feitas e a quantidade de cliques.
+
+```{r}
+temp %>% group_by(group) %>% summarise(spearman=cor(amount_clicks, amount_of_searches, method="spearman"),
+                                       kendall=cor(amount_clicks, amount_of_searches, method="kendall"),
+                                       pearson=cor(amount_clicks, amount_of_searches))
+```
+
+Pela tabela acima, fica claro a correlação forte e positiva entre ambas variáveis.
 
 ```{r}
 temp = buscas %>% filter(session_length_hour == "30s") %>% group_by(, group) %>% 
