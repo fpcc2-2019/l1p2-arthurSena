@@ -8,6 +8,7 @@ output: html_notebook
 options(scipen=999)
 library(tidyverse)
 library(here)
+library(gridExtra)
 library(lubridate)
     theme_set(theme_bw())
 buscas = read_csv(here::here("data/search_data.csv"))
@@ -15,8 +16,6 @@ buscas = read_csv(here::here("data/search_data.csv"))
 
 
 ### __Overview__
-Calcular diferença de tempo entre as buscas por grupo
-
 Nosso objetivo nessa atividade é responder as seguintes perguntas:
 
 - What is our daily overall clickthrough rate? How does it vary between the groups?
@@ -25,12 +24,14 @@ Nosso objetivo nessa atividade é responder as seguintes perguntas:
 - Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the - - dataset and describe its relationship to session length. Visualize the relationship.
 
 
-#### Análise exploratória
-Antes de tentar responder as perguntas, vamos fazer uma análise dos nossos dados com o objetivo se nos familiarizarmos melhor com os mesmos. A princípio, temos dados de sessões de buscas realizadas nos sites da Wikimedia. Abaixo vemos uma amostra de nossos dados.
+### __Análise exploratória__
+Antes de tentar responder as perguntas, vamos fazer uma análise dos nossos dados a fim de nos familiarizarmos melhor com os mesmos. A princípio, temos dados de sessões de buscas realizadas nos sites da _Wikimedia._ Abaixo vemos uma amostra de nossos dados.
 
 ```{r}
 head(buscas %>% arrange(session_id))
 ```
+
+Como vemos acima, nossos dados estão organizados em sessões e para cada sessão nós temos sua duração, tempo de início, quantidade de resultados, número de cliques e posição do primeiro clique.
 
 ```{r}
 quantidade_de_sessoes <- c(length(unique(buscas$session_id)))
@@ -63,18 +64,18 @@ O gráfico acima é bem interessante, pois ele indica que a quantidade de clique
 
 
 ```{r}
-library(gridExtra)
-click_rate_by_groups = buscas %>% group_by(date, group) %>% summarise(sum_clicks=sum(num_clicks))
-
-
-line_by_group = ggplot(data=click_rate_by_groups, aes(x=date, y=sum_clicks, group=group, color=group)) +
-  geom_line()
-
-
-boxplot_by_group = ggplot(click_rate_by_groups, aes(x=group, y=sum_clicks, color=group)) + geom_boxplot()
-
-
-grid.arrange(line_by_group, boxplot_by_group, ncol=2)
+# library(gridExtra)
+# click_rate_by_groups = buscas %>% group_by(date, group) %>% summarise(sum_clicks=sum(num_clicks))
+# 
+# 
+# line_by_group = ggplot(data=click_rate_by_groups, aes(x=date, y=sum_clicks, group=group, color=group)) +
+#   geom_line()
+# 
+# 
+# boxplot_by_group = ggplot(click_rate_by_groups, aes(x=group, y=sum_clicks, color=group)) + geom_boxplot()
+# 
+# 
+# grid.arrange(line_by_group, boxplot_by_group, ncol=2)
 
 ```
 
@@ -130,6 +131,31 @@ Observando o resultado acima, nota-se claramente que o grupo "A" apresenta uma t
 
 
 ### __Which results do people tend to try first? How does it change day-to-day?__
+
+Vou usar a coluna _search index_ para encontrar qual resultado as pessoas tendem a clicar primeiro. Tal coluna indica a ordem das buscas feitas dentro de uma sessão. Dessa forma, precisamos descobrir qual busca os usuários tendem a clicar primeiro no geral.
+
+```{r}
+first_search_index_with_clicks = buscas %>%
+                                    filter(num_clicks>0) %>%
+                                        group_by(session_id) %>% 
+                                            summarise(first_search_index=min(search_index))
+
+hist_first_search_index = ggplot(first_search_index_with_clicks , aes(x=first_search_index)) + 
+                            geom_histogram(binwidth = 1) + 
+                                labs(y="Frequência", x="Primeira busca com clique")
+
+grid.arrange(hist_first_search_index, ncol=1)
+```
+
+Pelo histograma acima, fica claro que a maioria dos usuários clicam em links logo na primeira busca realizada o que, possivelmente, indica que o mescanismo de busca é eficiente.
+
+```{r}
+first_search_index_with_clicks_by_date = buscas %>%
+                                            filter(num_clicks>0) %>%
+                                                group_by(session_id, date, group) %>%
+                                                    summarise(first_search_index=min(search_index))
+```
+
 
 
 ### __What is our daily overall zero results rate? How does it vary between the groups?__
