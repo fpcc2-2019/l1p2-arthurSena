@@ -71,7 +71,7 @@ ggplot(data=sessoes_date, aes(x=date, y=Quantidade_de_sessoes, group=group, colo
 
 ```
 
-Percebemos que o resultado agora se inverteu visto que, apesar do grupo "A" apresentar uma maior quantiade de cliques diários, o mesmo tem uma quantidade de sessões diárias menor que o grupo "B". Podemos agora analisar a relação na quantidade de sessões e quantidade de cliques por grupo. Vamos calcular uma variável nova chamada quantidade de cliques por sessão que é obtidade pela divisão da quantidade de cliques pela quantidade sessões diárias. Caso essa divisão seja maior que 1 saberemos que temos mais cliques que sessões, caso seja menor, temos mais sessões que cliques e sendo igual, a quantidade é igual. 
+Percebemos que o resultado agora se inverteu visto que, apesar do grupo "A" apresentar uma maior quantiade de cliques diários, o mesmo tem uma quantidade de sessões diárias menor que o grupo "B". Podemos agora analisar a relação da quantidade de sessões e quantidade de cliques por grupo. Vamos calcular uma variável nova chamada quantidade de cliques por sessão que é obtidade pela divisão da quantidade de cliques pela quantidade sessões de diárias. Caso essa divisão seja maior que 1 saberemos que temos mais cliques que sessões, caso seja menor, temos mais sessões que cliques e sendo igual, a quantidade é igual. 
 
 ```{r}
 clicks_by_sessions_df = buscas %>% 
@@ -83,11 +83,10 @@ ggplot(data=clicks_by_sessions_df, aes(x=date, y=clicks_by_sessions, group=group
   geom_line() +labs(x="Dias", y="Cliques por sessões", title="Quantidade de cliques divido pela quantidade de sessões diárias")+ guides(color=guide_legend("Grupo"))
 ```
 
-É interessante notaro grupo "A" apresenta uma quantidade de cliques bastante similar a quantidade de sessões diárias, de forma contrária o grupo "B" segue um  padrão oposto, no qual a quantidade de sessões é bem maior que a quantidade de cliques.
+Percebemos que o grupo "A" apresenta uma quantidade de cliques bastante similar a quantidade de sessões diárias, de forma contrária o grupo "B" segue um  padrão oposto, no qual a quantidade de sessões é bem maior que a quantidade de cliques.
 
 ### __What is our daily overall clickthrough rate? How does it vary between the groups?__
-A fim de calcular a taxa de clique diários por grupo, nós precisamos contabilizar as sessões que tiveram pelo menos um clique e dividir
-esse resultado pela quantidade total de cliques por dia e por grupo. Abaixo segue o resultado.
+A fim de calcular a taxa de clique diários por grupo, nós precisamos contabilizar as sessões que tiveram pelo menos um clique e dividir esse resultado pela quantidade total de sessões por dia e por grupo. Abaixo segue o resultado.
 
 ```{r}
 temp1 = buscas %>% 
@@ -130,14 +129,8 @@ grid.arrange(hist_first_search_index, ncol=1)
 
 Pelo histograma acima, fica claro que a maioria dos usuários clicam em links logo na primeira busca realizada o que, possivelmente, indica que o mescanismo de busca é eficiente.
 
-```{r}
-# first_search_index_with_clicks_by_date = buscas %>%
-#                                             filter(num_clicks>0) %>%
-#                                                 group_by(session_id, date, group) %>%
-#                                                     summarise(first_search_index=min(search_index))
-```
-
 ### __What is our daily overall zero results rate? How does it vary between the groups?__
+O _daily overall zero results rate_ será computado a partir da divisão entre a quantidade de buscas com resultados iguais a zero pela quantidade total de buscas. 
 
 ```{r}
 # Calculating zero result rating by group
@@ -170,9 +163,6 @@ zero_results_line_chart = ggplot(data=zero_results_rate_without_group, aes(x=dat
                     geom_line() + labs(x="Date", y="Zero results rate")
 
 
-# boxplot_by_group = ggplot(zero_results_rate_by_group, aes(x=group, y=zero_results_rate, color=group)) +
-#                     geom_boxplot() 
-
 density_chart_by_group = ggplot(zero_results_rate_by_group, aes(x=zero_results_rate, color=group)) + 
                             geom_density() + labs(x="Zero results rate", y="Density") +
                                 guides(color=guide_legend("Grupo"))
@@ -184,23 +174,30 @@ grid.arrange(density_chart_by_group, ncol=1)
 
 ```
 
-Observando o gráfico acima, vemos que a taxa de zero resultados não varia muito por dia e não parece ser muito discriminante entre grupos, visto que os gráficos de densidades de ambos se interpolam bastante.
+Observando os gráficos acima, vemos que a taxa de zero resultados não varia muito por dia e não parece ser muito discriminante entre grupos, visto que os gráficos de densidades de ambos se interpolam bastante.
 
 
 ### __Let session length be approximately the time between the first event and the last event in a session. Choose a variable from the dataset and describe its relationship to session length. Visualize the relationship.__
- Já que temos a variável _session length_ em mãos, vamos tentar validar ou refutar a seguinte hipótese:
- - H: Qual a relação do tempo da sessão com a quantidade de cliques e buscas feitas?
+ Já que temos a variável _session length_ em mãos, vamos tentar responder a seguinte questão:
  
-Antes de qualquer coisa, vamos observar o gráfico de densidade da variável _session length_.
+ - Qual a relação do tempo da sessão com a quantidade de cliques e buscas feitas?
+ 
+Antes de qualquer coisa, vamos observar o gráfico de densidade da variável _session length_. Lembrando que essa coluna se encontra representada em segundos.
 
 ```{r}
 
-ggplot(buscas %>% filter(session_length < 1000), aes(x=session_length)) + 
-    geom_density() + labs(x="Duração Sessão", y="Frequência")
+density_session_length = ggplot(buscas %>% filter(session_length < 1000), aes(x=session_length)) + 
+                            geom_density() + labs(x="Duração Sessão", y="Frequência")
+
+density_session_length_by_group = ggplot(buscas %>% filter(session_length < 1000), aes(x=session_length)) + 
+                                    geom_density() + facet_wrap(~group)+labs(x="Duração Sessão", y="Frequência")
+
+grid.arrange(density_session_length, ncol=1)
+grid.arrange(density_session_length_by_group, ncol=1)
 
 ```
 
-Observando o gráfico de densidade acima, notamos que a maioria das sessões apresenta um tempo bastante curto de duração. Vamos realizar um agrupamento do tempo em cinco categorias:
+Observando o gráfico de densidade acima, notamos que a maioria das sessões apresenta um tempo bastante curto de duração no geral. E quando agrupamos por grupo, ainda vemos um resultado similar, porém fica bastante evidente que tal característica é predominante no grupo "B". Vamos agora realizar um agrupamento do tempo em cinco categorias:
 
 - Sessões com até 30 segundos de duração
 - Sessões entre 30 segundos e 1 minuto de duração
@@ -217,6 +214,7 @@ buscas = buscas %>%
                           if_else(session_length >60 & session_length<=120,"2min",
                               if_else(session_length > 30 & session_length <= 60,"1min","+8min"))))))
 
+buscas$session_length_hour <- factor(buscas$session_length_hour, levels=c("30s", "1min", "2min", "4min", "8min", "+8min"))
 
 session_length_freq = buscas %>% select(session_id, session_length_hour) %>%
                          distinct() %>%    
@@ -229,8 +227,7 @@ ggplot(session_length_freq, aes(x=session_length_hour, y=Percentage)) +
         labs(x="Duraçao da sessão", y="Porcentagem") 
 ```
 
-Vemos que a quantidade de sessões com duração abaixo de 30 segundos é maioriar. Vamos agrupar por grupo e observar se esse cenário 
-se mantém.
+Vemos que a quantidade de sessões com duração abaixo de 30 segundos é maioriar. Vamos agrupar por grupo e observar se esse cenário se mantém.
 
 ```{r}
 session_length_freq = buscas %>% select(session_id, session_length_hour, group) %>%
@@ -241,92 +238,75 @@ session_length_freq = buscas %>% select(session_id, session_length_hour, group) 
 
 session_length_freq_to_wrap = session_length_freq
 
-
-
 ggplot(session_length_freq, aes(x=session_length_hour, y=Porcentagem)) + 
     geom_bar(stat = "identity",position = "stack", aes(fill=group))  +
         labs(x="Duração da Sessão")
-
-
-# ggplot(session_length_freq, aes(x=session_length_hour, y=Porcentagem)) + 
-#     geom_bar(stat = "identity",aes(fill=group)) + facet_wrap(~group) +
-#         labs(x="Duração da Sessão")
-
 ```
 
 A visualização acima é bem interessante, pois ela mostra que a maioria das sessões com até 30 segundos de duração são classificadas como grupo "B". Ao passo que todas as outras sessões com mais tempo de duração são em maior parte do grupo "A".  
 
 Com isso mente, vamos analisar a variáveis quantidade de buscas e clique.
 
-- Quantidade de buscas feitas ao longo dos dias.
+- Média da quantidade de buscas feitas ao longo dos dias.
 ```{r, echo=F, warning=F, error=F}
-temp = buscas %>% group_by(session_length_hour, date, group) %>% summarise(amount_clicks=sum(num_clicks),amount_of_searches=n())
+mean_search_by_session_length = buscas %>% 
+                                    group_by(session_length_hour, date, group, session_id) %>% 
+                                        summarise(amount_of_searches=n_distinct(search_index)) %>% 
+                                            group_by(session_length_hour, date, group) %>%
+                                                summarise(amount_of_searches_mean=round(mean(amount_of_searches),2))
 
 
-ggplot(data=temp, aes(x=date, y=amount_of_searches, group=session_length_hour, color=session_length_hour))+
+ggplot(data=mean_search_by_session_length, 
+            aes(x=date, y=amount_of_searches_mean, group=session_length_hour, color=session_length_hour))+
                     geom_line() + scale_x_date(date_labels="%d",date_breaks  ="1 day") +
                         theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-                            facet_wrap(~group) + labs(y="Quantidade de buscas", x ="Dia") +
+                            facet_wrap(~group) + labs(y=" Média quantidade de buscas", x ="Dia") +
                                 guides(color=guide_legend("Duração Sessão"))
 ```
 
-O gráfico acima mostra que a quantidade de sessões com menos de 30s de duração foram as sessões que apresentaram uma maior quantidade de buscas no grupo "B" em todos os dias. O mesmo não se reflete no grupo "A" que apresenta sessões com duração entre 4 e 8 minutos como as que apresentaram a maior quantidade de buscas em todos os dias.
-
+O gráfico acima mostra que o grupo "B" apresenta uma média de busca por sessões sempre menor que 2. Todavia, o grupo "A" apresenta a mesma média sempre maior ou igual à 2. Outro ponto a se observar é que no grupo "A" fica claro que sessões com duração de +8min apresenta uma média de buscas maior. Já no grupo "B" a média de buscas é similar entre todos os tamanho de sessões.
 
 - Quantidade de cliques feitos ao longo dos dias.
 
 ```{r}
-temp = buscas %>% group_by(session_length_hour, date, group) %>% summarise(amount_clicks=sum(num_clicks),amount_of_searches=n())
+amount_clicks_by_session_length = buscas %>% 
+                                    group_by(session_length_hour, date, group) %>% 
+                                        summarise(amount_clicks=sum(num_clicks))
 
-ggplot(data=temp, aes(x=date, y=amount_clicks, group=session_length_hour, color=session_length_hour))+
-                    geom_line() + scale_x_date(date_labels="%d",date_breaks  ="1 day") +
-                        theme(axis.text.x = element_text(angle = 45, hjust = 1)) + facet_wrap(~group)
+ggplot(data=amount_clicks_by_session_length, 
+       aes(x=date, y=amount_clicks, group=session_length_hour, color=session_length_hour))+
+            geom_line() + scale_x_date(date_labels="%d",date_breaks  ="1 day") +
+                theme(axis.text.x = element_text(angle = 45, hjust = 1)) + facet_wrap(~group)
 ```
 
-O cenário que é mostrado no gráfico acima demonstra que a quantidade de cliques diários no por duração de sessão é maior no grupo "A". Além disso, vemos que o grupo "A" sofreu uma quedra abrupta de cliques entre o dia 4 e o dia 6. De forma contrária, o grupo "B" apresentou uma quantidade de cliques bem mais uniforme e estável.
+O cenário que é mostrado no gráfico acima demonstra que a quantidade de cliques diários por duração de sessão é maior no grupo "A". Além disso, vemos que o grupo "A" sofreu uma quedra abrupta de cliques entre o dia 4 e o dia 6. De forma contrária, o grupo "B" apresentou uma quantidade de cliques bem mais uniforme e estável.
 
 Por fim, vamos apresentar as três variáveis em somente uma visualização e analisar o relacionamento delas.
 ```{r}
 
-session_to_wrap = ggplot(temp, aes(x=amount_clicks, y=amount_of_searches, color=group)) + facet_wrap( ~session_length_hour, scales = "free_y") + geom_point()
+clicks_and_session = amount_clicks_by_session_length %>% 
+                        inner_join(mean_search_by_session_length, by=c("session_length_hour", "date", "group"))
 
-group_to_wrap = ggplot(temp, aes(x=amount_clicks, y=amount_of_searches, color=session_length_hour)) + facet_wrap( ~group, scales = "free_y") + geom_point()
+session_to_wrap = ggplot(clicks_and_session, aes(x=amount_clicks, y=amount_of_searches_mean, color=group)) + facet_wrap( ~session_length_hour, scales = "free_y") + geom_point()
+
+group_to_wrap = ggplot(clicks_and_session, aes(x=amount_clicks, y=amount_of_searches_mean, color=session_length_hour)) + facet_wrap( ~group, scales = "free_y") + geom_point()
 
 grid.arrange(session_to_wrap, ncol=1)
 grid.arrange(group_to_wrap, ncol=1)
 
 ```
 
-Nota-se uma clara correlação positiva entre as variveis quantidade de busca e quantidade de cliques, de forma que tal correlação permanece mesmo fazendo o agrupamento por grupos. Ademais, as sessões curtas (30s) do grupo "B" ficam bastante evidentes, pois apresentam uma quantidade de buscas bem maior que as outras sessões. Abaixo, calculamos a correlação entre a quantidade de buscas feitas e a quantidade de cliques.
+Aqui é interessante observar a correlação positiva entre as variáveis média da quantidade de buscas e quantidade de cliques no grupo "A". Sendo que a mesma correlação se torna negativa quando olhamos para o grupo "B". Abaixo, segue o resultado do cálculo da correlação por grupo a fim de termos uma melhor noção sobre a correlação.
 
 ```{r}
-temp %>% group_by(group) %>% summarise(spearman=cor(amount_clicks, amount_of_searches, method="spearman"),
-                                       kendall=cor(amount_clicks, amount_of_searches, method="kendall"),
-                                       pearson=cor(amount_clicks, amount_of_searches))
+clicks_and_session %>% 
+        group_by(group) %>% 
+            summarise(spearman=cor(amount_clicks, amount_of_searches_mean, method="spearman"),
+                                   kendall=cor(amount_clicks, amount_of_searches_mean, method="kendall"),
+                                   pearson=cor(amount_clicks, amount_of_searches_mean))
 ```
 
-Pela tabela acima, fica claro a correlação forte e positiva entre ambas variáveis.
+Pela tabela acima, podemos concluir que:
 
-```{r}
-temp = buscas %>% filter(session_length_hour == "30s") %>% group_by(, group) %>% 
-    summarise(num_clicks=sum(num_clicks))
-
-```
-
-
-
-
-
-
-
-```{r}
-session_1more_search = buscas %>% group_by(session_id) %>% summarise(n=n()) %>% filter(n>1) %>% select("session_id")
-
-session_1more_search = session_1more_search %>% inner_join(buscas, by="session_id")
-
-View(session_1more_search %>% group_by(session_id) )
-
-# tibble(i = 1:10) %>% mutate(i2 = i - lag(i))
-
-```
-
+- No grupo "A", quanto maior a quantidade de cliques, maior é a quantidade de buscas diárias.
+- No grupo "B", quanto maior a quantidade de cliques, menor é a quantidade de buscas diárias.
